@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from reportlab.lib.pagesizes import landscape, letter
-from reportlab.platypus import SimpleDocTemplate, Image, Table, TableStyle, Paragraph, Frame, PageTemplate, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Image, Table, TableStyle, Paragraph, PageBreak
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
@@ -33,11 +33,12 @@ def formatar_posto(posto):
 
 def abreviar_posto(posto):
     abreviacoes = {
-        "Cabo de Santo Agostinho": "Cabo de Santo A.",
-        "Nazare da Mata": "Nazaré da Mata",
-        "Igarassu": "Igarassu",
-        "Vitoria de Santo Antao": "Vitória de S. Antão",
-        "Santa Cruz do Capibaribe": "Santa Cruz do C."
+        "Cabo de Santo Agostinho" : "Cabo de Santo A.",
+        "Nazare da Mata" : "Nazaré da Mata",
+        "Igarassu" : "Igarassu",
+        "Vitoria de Santo Antao" : "Vitória de S. Antão",
+        "Santa Cruz do Capibaribe" : "Santa Cruz do C.",
+        "Sao Lourenco da Mata" : "São L. da Mata"
     }
     return abreviacoes.get(posto, posto).replace('Sine', '').strip()
 
@@ -92,19 +93,19 @@ def criar_pdf(dados, nome_pdf):
         row[0] = abreviar_posto(row[0])
         row[2] = limitar_texto(str(row[2]), 35)
         row[3] = formatar_municipio(row[3])
-
         salario = row[5]
         frequencia = row[6]
 
-        zero_salario_formats = ["0", "0.0", "0,0", "0.00", "0,00"]
+        salario = salario.replace(".", "").replace(",", ".") 
+        salario_float = float(salario)
+        salario_redondo = round(salario_float)
 
-        if salario in zero_salario_formats:
-                salario_frequencia = "Não informado"
+        if salario_float == 0.0:
+            salario_frequencia = "Não informado"
+        elif salario_float >= 100.0:
+            salario_frequencia = f"R$ {salario_redondo} / {frequencia}"
         else:
-                if frequencia != "Não informado":
-                    salario_frequencia = f"{salario} - {frequencia}"
-                else:
-                    salario_frequencia = salario
+            salario_frequencia = f"R$ {salario_float} / {frequencia}"
 
         row[5] = salario_frequencia
         row[6] = formatar_escolaridade(row[7])
@@ -127,6 +128,10 @@ def criar_pdf(dados, nome_pdf):
     obs_style.textColor = colors.red
     obs_style.alignment = 1
     obs_style.spaceAfter = 12
+
+    vazio_style = getSampleStyleSheet()["Heading1"]
+    vazio_style.fontSize = 1
+    vazio_style.textColor = colors.white
 
     legenda_style = getSampleStyleSheet()["Italic"]
     legenda_style.fontName = 'Helvetica-Bold'
@@ -255,9 +260,11 @@ def criar_pdf(dados, nome_pdf):
             total_vagas += int(row[1])
         except ValueError:
             pass
-    paragrafo_total_vagas = Paragraph(f"Total de Vagas: {total_vagas}", obs_style)
-    table_parts.append(paragrafo_total_vagas)
 
+    paragrafo_vazio = Paragraph ("-", vazio_style)
+    paragrafo_total_vagas = Paragraph(f"Total de Vagas: {total_vagas}", obs_style)
+    table_parts.append(paragrafo_vazio)
+    table_parts.append(paragrafo_total_vagas)
 
     paragrafo_legenda0 = Paragraph("Legenda:", legenda_style)
     paragrafo_legenda1 = Paragraph("Exclusivo PCD = Exclusivo para Pessoa com Deficiência")
@@ -297,10 +304,10 @@ if __name__ == "__main__":
             try:
                 criar_pdf(df, nome_pdf)
                 print(f"Relatório gerado com sucesso: {nome_pdf}")
+
             except Exception as e:
                 print(f"Erro ao gerar o relatório para {nome_pdf}: {e}")
 
-                #Debug
-                #print("Dados que causaram o erro:")
-                #print(df)
+                print("Dados que causaram o erro:")
+                print(df)
 
