@@ -6,7 +6,6 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 
 
-# Ler o .csv
 def ler_csv(arquivo_csv):
     data_columns = ["Posto", "Ocupação", "Qtd. Vagas Disponíveis", "Município Local de Trabalho", "Forma de Contratação", "Salário", "Frequência de Pagamento", "Escolaridade", "Tempo de Experiência", "Aceita Deficientes"]
     csv_files = [file for file in os.listdir() if file.endswith(".csv")]
@@ -20,7 +19,6 @@ def ler_csv(arquivo_csv):
     return dfs
 
 
-# Limitar a quantidade de caracteres
 def limitar_texto(texto, limite):
     return texto[:35]
 
@@ -43,7 +41,6 @@ def abreviar_posto(posto):
     return abreviacoes.get(posto, posto).replace('Sine', '').strip()
 
 
-# Formatar a coluna 'Município'
 def formatar_municipio(municipio):
     return limitar_texto(municipio.replace("PE-", ""), 30)
 
@@ -53,7 +50,6 @@ def formatar_escolaridade(valor):
     return valor
 
 
-# Formatar a coluna 'Tempo de Experiência'
 def formatar_experiencia(valor):
     try:
         valor_inteiro = int(float(valor)) 
@@ -75,7 +71,6 @@ def formatar_pcds(valor):
         return valor
     
 
-# Criar o PDF 
 def criar_pdf(dados, nome_pdf):
     global total_vagas
     doc = SimpleDocTemplate(nome_pdf, pagesize=landscape(letter), rightMargin=30, leftMargin=30, topMargin=20, bottomMargin=10)
@@ -83,11 +78,9 @@ def criar_pdf(dados, nome_pdf):
 
     table = Table(table_data)
 
-    # Ajustar as dimensões das células
     col_widths = [90, 40, 190, 135, 75, 80, 100, 65, 0]  
     row_height = 25
 
-    # Formatações na tabela
     for index, row in enumerate(table_data):
         row[0] = formatar_posto(row[0])
         row[0] = abreviar_posto(row[0])
@@ -121,7 +114,6 @@ def criar_pdf(dados, nome_pdf):
 
     table = Table(table_data, colWidths=col_widths, rowHeights=row_height, repeatRows=1)
 
-    # Definição de estilos para títulos e conteúdo
     obs_style = getSampleStyleSheet()["Heading1"]
     obs_style.fontName = 'Helvetica-Bold'
     obs_style.fontSize = 12
@@ -143,7 +135,6 @@ def criar_pdf(dados, nome_pdf):
     title_style.alignment = 1
 
     table.setStyle(TableStyle([
-        # Estilo para a primeira linha (títulos das colunas)
         ('BACKGROUND', (0, 0), (-1, 0), colors.teal),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -155,10 +146,8 @@ def criar_pdf(dados, nome_pdf):
     table_parts = []
     max_rows_per_page = 18
     
-    # Ordenar os dados pelo valor da coluna "Posto"
     table_data.sort(key=lambda x: (x[0][0].upper(), x[0], x[4])) 
     
-    # Agrupar os dados pelo valor da coluna "Posto"
     grupos = {}
     for row in table_data:
         posto = row[0]
@@ -169,21 +158,17 @@ def criar_pdf(dados, nome_pdf):
     for posto, grupo_data in grupos.items():
         current_page_rows = []
 
-        # Adicionar a imagem no início da página
         img_path = "governo-copia.png"
         img = Image(img_path, width=400, height=80)
 
         for row in grupo_data:
 
             if len(current_page_rows) >= max_rows_per_page:
-                    # Criar uma nova página com as vagas do posto anterior
                     adicionar_quebra_pagina = True  
                     if len(current_page_rows) < max_rows_per_page and grupo_data.index(row) == len(grupo_data) - 1:
-                        # Não adicionar quebra de página se for a última vaga e não completou a página
                         adicionar_quebra_pagina = False  
                     if adicionar_quebra_pagina:
 
-                        # Adicionar linha de observação no topo da nova página
                         obs_line = Paragraph("Obs: Vagas sujeitas a alterações no decorrer do dia.", obs_style)
                         table_parts.append(obs_line)
                         table_part = current_page_rows
@@ -201,19 +186,17 @@ def criar_pdf(dados, nome_pdf):
                         table_parts.append(PageBreak())
                         current_page_rows = []
             
-            # Cabeçalho na primeira linha da página
             if not current_page_rows:  
                 table_parts.append(img)
                 nomes_colunas = ["Agência", "Vagas", "Descrição", "Local de Trabalho", "Contrato", "Salário", "Escolaridade", "Experiência"]
                 current_page_rows.append(nomes_colunas)
             current_page_rows.append(row)
         
-        # Calcular o total de vagas por posto
         total_vagas_posto = sum(int(row[1]) for row in grupo_data)
         posto_vagas_row = [f"Vagas", total_vagas_posto] + [None] * 6
         current_page_rows.append(posto_vagas_row)
 
-        if current_page_rows:  # Adicionar linha de observação no topo da nova página
+        if current_page_rows: 
             obs_line = Paragraph("Obs: Vagas sujeitas a alterações no decorrer do dia.", obs_style)
             table_parts.append(obs_line)
 
@@ -232,7 +215,6 @@ def criar_pdf(dados, nome_pdf):
             if posto != list(grupos.keys())[-1]:
                 table_parts.append(PageBreak())
 
-          # Adicionar as vagas "Exclusivo PCD" no final de cada grupo
         vagas_por_contratacao = {}
         vagas_exclusivas_pcd = []
 
@@ -253,7 +235,6 @@ def criar_pdf(dados, nome_pdf):
     current_page_rows.extend(current_page_rows_grouped)
 
 
-    # Calcular o total de vagas
     total_vagas = 0
     for row in table_data:
         try:
@@ -276,15 +257,12 @@ def criar_pdf(dados, nome_pdf):
     doc.build(table_parts)
 
 
-# Criação da pasta de saída e leitura do .csv
-
 if __name__ == "__main__":
     pasta_output = "output"
 
     if not os.path.exists(pasta_output):
         os.makedirs(pasta_output)
 
-    # Ler todos os arquivos .csv da pasta
     csv_files = [file for file in os.listdir() if file.endswith(".csv")]
 
     for csv_file in csv_files:
